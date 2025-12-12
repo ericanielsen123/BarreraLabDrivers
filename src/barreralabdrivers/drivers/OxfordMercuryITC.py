@@ -46,7 +46,9 @@ class ITC_temperature_module(InstrumentModule):
             name="temp",
             label=f"Temperature of {self.full_name}",
             unit="K",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:SIG:TEMP",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:SIG:TEMP"
+            ),
             get_parser=self._parse_response_to_float,
         )
         """
@@ -61,7 +63,7 @@ class ITC_temperature_module(InstrumentModule):
             name="htr_resistance",
             unit="ohms",
             label=f"heater Resistance of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.heater}:HTR:RES",
+            get_cmd=lambda: self._flush_then_get(f"READ:DEV:{self.heater}:HTR:RES"),
             get_parser=self._parse_response_to_float,
         )
         """
@@ -76,7 +78,7 @@ class ITC_temperature_module(InstrumentModule):
             name="htr_vlim",
             unit="V",
             label=f"heater Voltage Limit of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.heater}:HTR:VLIM",
+            get_cmd=lambda: self._flush_then_get(f"READ:DEV:{self.heater}:HTR:VLIM"),
             get_parser=self._parse_response_to_float,
         )
 
@@ -88,17 +90,15 @@ class ITC_temperature_module(InstrumentModule):
         not defined
         """
 
-        # self.heatpower = self.add_parameter(
-        #     name="heatpower",
-        #     label=f"Heater Power of {self.full_name}",
-        #     unit="W",
-        #     get_cmd=f"READ:DEV:{self.heater}:HTR:SIG:POWR",
-        #     # get_parser=self._parse_response_to_float,
-        #     set_cmd=lambda pow: self._set_with_flush(
-        #         f"SET:DEV:{self.heater}:HTR:VOLT:{self._power_to_volts(pow)}"
-        #     ),
-        #     vals=vals.Numbers(0, self.htr_vlim() ** 2 / self.htr_resistance()),
-        # )
+        self.heatpower = self.add_parameter(
+            name="heatpower",
+            label=f"Heater Power of {self.full_name}",
+            unit="W",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.heater}:HTR:SIG:POWR"
+            ),
+            get_parser=self._parse_response_to_float,
+        )
 
         """
         heatpower
@@ -112,11 +112,13 @@ class ITC_temperature_module(InstrumentModule):
         self.tloop_p = self.add_parameter(
             name="tloop_p",
             label=f"Temperature Loop P of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:P",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:P"
+            ),
             get_parser=self._parse_response_to_float,
-            # set_cmd=lambda val: self._set_with_flush(
-            # f"SET:DEV:{self.thermometer}:TEMP:LOOP:P:{val}"
-            # ),
+            set_cmd=lambda val: self._set_with_flush(
+                f"SET:DEV:{self.thermometer}:TEMP:LOOP:P:{val}"
+            ),
         )
         """
         tloop_p
@@ -129,7 +131,9 @@ class ITC_temperature_module(InstrumentModule):
         self.tloop_i = self.add_parameter(
             name="tloop_i",
             label=f"Temperature Loop I of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:I",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:I"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:I:{val}"
@@ -146,7 +150,9 @@ class ITC_temperature_module(InstrumentModule):
         self.tloop_d = self.add_parameter(
             name="tloop_d",
             label=f"Temperature Loop D of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:D",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:D"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:D:{val}"
@@ -164,7 +170,9 @@ class ITC_temperature_module(InstrumentModule):
             name="tset",
             label=f"Temperature Setpoint of {self.full_name}",
             unit="K",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:TSET",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:TSET"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:TSET:{val}"
@@ -182,7 +190,9 @@ class ITC_temperature_module(InstrumentModule):
         self.tloop_mode = self.add_parameter(
             name="tloop_mode",
             label=f"Temperature Loop Mode of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:ENAB",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:ENAB"
+            ),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:ENAB:{self._on_or_off(val)}"
             ),
@@ -200,7 +210,9 @@ class ITC_temperature_module(InstrumentModule):
             name="ramprate",
             label=f"Temperature Ramp Rate of {self.full_name}",
             unit="K/min",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:RSET",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:RSET"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:RSET:{val}"
@@ -217,7 +229,9 @@ class ITC_temperature_module(InstrumentModule):
         self.rampmode = self.add_parameter(
             name="rampmode",
             label=f"Temperature Ramp Mode of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:RENA",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:RENA"
+            ),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:RENA:{self._on_or_off(val)}"
             ),
@@ -261,6 +275,13 @@ class ITC_temperature_module(InstrumentModule):
         except:
             pass
 
+    def _flush_then_get(self, cmd: str) -> str:
+        try:
+            _ = self.root_instrument.visa_handle.read()
+        except Exception:
+            pass  # Likely means buffer was already empty
+        return self.root_instrument.visa_handle.query(cmd)
+
 
 class MercuryiTC(VisaInstrument):
     def __init__(
@@ -268,18 +289,18 @@ class MercuryiTC(VisaInstrument):
     ) -> None:
         super().__init__(name, address, terminator=terminator, **kwargs)
 
-        self.visa_handle.timeout = 100
+        self.visa_handle.timeout = 400
         self.connect_message()
         self._set_with_flush("SET:DEV:DB5.P1:PRES:LOOP:AUX:DB4.G1")
         self._set_with_flush("SET:DEV:DB5.P1:PRES:LOOP:SWMD:OFF")
         self._set_with_flush("SET:DEV:DB5.P1:PRES:LOOP:FAUT:OFF")
 
         """
-        Identification of the powersupply 
+        Identification of the powersupply
         """
         self.add_parameter(
             name="get_identity",
-            get_cmd=f"*IDN?",
+            get_cmd=lambda: self._flush_then_get(f"*IDN?"),
             get_parser=str,
         )
 
@@ -290,7 +311,11 @@ class MercuryiTC(VisaInstrument):
         set:    
         not defined
         """
-        self.add_parameter(name="alarms", get_cmd="READ:SYS:ALRM", get_parser=str)
+        self.add_parameter(
+            name="alarms",
+            get_cmd=lambda: self._flush_then_get("READ:SYS:ALRM"),
+            get_parser=str,
+        )
 
         """
         system_status 
@@ -300,7 +325,11 @@ class MercuryiTC(VisaInstrument):
         not defined
         """
 
-        self.add_parameter(name="system_status", get_cmd="READ:SYS:CAT", get_parser=str)
+        self.add_parameter(
+            name="system_status",
+            get_cmd=lambda: self._flush_then_get("READ:SYS:CAT"),
+            get_parser=str,
+        )
 
         # Adding the VTI and probe temperature control modules defined in ITC_temperature_module
         self.add_submodule(
@@ -331,7 +360,7 @@ class MercuryiTC(VisaInstrument):
             name="pressure",
             label="VTI Pressure",
             unit="mBar",
-            get_cmd="READ:DEV:DB5.P1:PRES:SIG:PRES",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:SIG:PRES"),
             get_parser=self._parse_response_to_float,
         )
 
@@ -347,7 +376,7 @@ class MercuryiTC(VisaInstrument):
             name="nv_percent",
             label="Needle Valve Percentage",
             unit="%",
-            get_cmd="READ:DEV:DB4.G1:AUX:SIG:PERC",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB4.G1:AUX:SIG:PERC"),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:FSET:{val}"
@@ -367,7 +396,7 @@ class MercuryiTC(VisaInstrument):
         self.vti.ploop_aux = self.vti.add_parameter(
             name="ploop_aux",
             label="Pressure Loop Aux",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:AUX",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:AUX"),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:AUX:{val}"
             ),
@@ -385,7 +414,7 @@ class MercuryiTC(VisaInstrument):
         self.vti.ploop_htr = self.vti.add_parameter(
             name="ploop_htr",
             label="Pressure Loop Heater",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:HTR",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:HTR"),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:HTR:{val}"
             ),
@@ -402,7 +431,7 @@ class MercuryiTC(VisaInstrument):
         self.vti.ploop_p = self.vti.add_parameter(
             name="ploop_p",
             label="Pressure Loop PID P",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:P",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:P"),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:P:{val}"
@@ -420,7 +449,7 @@ class MercuryiTC(VisaInstrument):
         self.vti.ploop_i = self.vti.add_parameter(
             name="ploop_i",
             label="Pressure Loop PID I",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:I",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:I"),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:I:{val}"
@@ -438,7 +467,7 @@ class MercuryiTC(VisaInstrument):
         self.vti.ploop_d = self.vti.add_parameter(
             name="ploop_d",
             label="Pressure Loop PID D",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:D",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:D"),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:D:{val}"
@@ -456,7 +485,7 @@ class MercuryiTC(VisaInstrument):
         self.vti.ploop_mode = self.vti.add_parameter(
             name="ploop_mode",
             label="Pressure Loop PID Mode",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:ENAB",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:ENAB"),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:ENAB:{self._on_or_off(val)}"
             ),
@@ -475,7 +504,7 @@ class MercuryiTC(VisaInstrument):
             name="pset",
             label="Pressure Setpoint",
             unit="mBar",
-            get_cmd="READ:DEV:DB5.P1:PRES:LOOP:PSET",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:DB5.P1:PRES:LOOP:PSET"),
             # get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:DB5.P1:PRES:LOOP:PSET:{val}"
@@ -498,7 +527,7 @@ class MercuryiTC(VisaInstrument):
         if val == {} or val is None:
             return None  # Ignore or handle empty case as needed
         val = str(val).strip().upper()
-        if val in {"ON", "OFF"}:
+        if val in {"ON", "OFF", "ON", "OFF"}:
             return val
         raise ValueError(f"Expected 'ON' or 'OFF', got {val}")
 
@@ -509,3 +538,10 @@ class MercuryiTC(VisaInstrument):
             _ = self.root_instrument.visa_handle.read()
         except:
             pass
+
+    def _flush_then_get(self, cmd: str) -> str:
+        try:
+            _ = self.root_instrument.visa_handle.read()
+        except Exception:
+            pass  # Likely means buffer was already empty
+        return self.root_instrument.visa_handle.query(cmd)

@@ -14,6 +14,8 @@ from qcodes.instrument import InstrumentModule, VisaInstrument
 from qcodes.parameters import Parameter
 from qcodes.validators import Ints, Numbers
 import re
+import numpy as np
+import time
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +43,7 @@ class iPSMagnet(InstrumentModule):
 
         self.status = self.add_parameter(
             name="status",
-            get_cmd="READ:DEV:GRPZ:PSU:STAT",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:STAT"),
             get_parser=str,
         )
 
@@ -54,7 +56,7 @@ class iPSMagnet(InstrumentModule):
         """
         self.switch_htr_id = self.add_parameter(
             name="switch_htr_id",
-            get_cmd="READ:DEV:GRPZ:PSU:SWPR",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SWPR"),
             get_parser=str,
         )
 
@@ -68,7 +70,7 @@ class iPSMagnet(InstrumentModule):
 
         self.switch_htr = self.add_parameter(
             name="switch_htr",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:SWHT",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:SWHT"),
             get_parser=str,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:GRPZ:PSU:SIG:SWHT:{self._safe_swtich(self._on_or_off(val))}"
@@ -86,7 +88,7 @@ class iPSMagnet(InstrumentModule):
         self.curr = self.add_parameter(
             name="curr",
             unit="A",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:CURR",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:CURR"),
             get_parser=self._parse_response_to_float,
         )
 
@@ -100,7 +102,7 @@ class iPSMagnet(InstrumentModule):
         self.fset = self.add_parameter(
             name="fset",
             unit="T",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:FSET",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:FSET"),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:GRPZ:PSU:SIG:FSET:{val}"
@@ -117,7 +119,7 @@ class iPSMagnet(InstrumentModule):
         self.supply_field = self.add_parameter(
             name="supply_field",
             unit="T",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:FLD",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:FLD"),
             get_parser=self._parse_response_to_float,
         )
 
@@ -125,17 +127,20 @@ class iPSMagnet(InstrumentModule):
         field:
         get: none -> float
         returns the current magnetic field in Tesla
-        set: 
-        not defined
+        set: val -> none
+        Uses ips.mag.fset(val), followed by ips.mag.rampmode('to_set'). 
+        Can only be used when ips.mag.switch_htr is 'ON' 
         """
         self.field = self.add_parameter(
             name="field",
             unit="T",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:PFLD",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:PFLD"),
             get_parser=self._parse_response_to_float,
+            set_cmd=lambda val: self._set_field(val),
         )
 
         """
+        
         rampmode:
         get: none -> str
         returns the current magnetic field ramp status 
@@ -144,7 +149,7 @@ class iPSMagnet(InstrumentModule):
         """
         self.rampmode = self.add_parameter(
             name="rampmode",
-            get_cmd="READ:DEV:GRPZ:PSU:ACTN",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:ACTN"),
             get_parser=str,
             set_cmd=lambda cmd: self._set_with_flush(
                 f"SET:DEV:GRPZ:PSU:ACTN:{self._ramp_action(cmd)}"
@@ -163,7 +168,7 @@ class iPSMagnet(InstrumentModule):
         self.rateset = self.add_parameter(
             name="rateset",
             unit="T/min",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:RFST",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:RFST"),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:GRPZ:PSU:SIG:RFST:{val}"
@@ -181,7 +186,7 @@ class iPSMagnet(InstrumentModule):
         self.ramprate = self.add_parameter(
             name="ramprate",
             unit="T/min",
-            get_cmd="READ:DEV:GRPZ:PSU:SIG:RFLD",
+            get_cmd=lambda: self._flush_then_get("READ:DEV:GRPZ:PSU:SIG:RFLD"),
             get_parser=self._parse_response_to_float,
         )
 
@@ -192,7 +197,9 @@ class iPSMagnet(InstrumentModule):
             name="temp",
             label=f"Temperature of {self.full_name}",
             unit="K",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:SIG:TEMP",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:SIG:TEMP"
+            ),
             get_parser=self._parse_response_to_float,
         )
         """
@@ -207,7 +214,7 @@ class iPSMagnet(InstrumentModule):
             name="htr_resistance",
             unit="ohms",
             label=f"heater Resistance of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.heater}:HTR:RES",
+            get_cmd=lambda: self._flush_then_get(f"READ:DEV:{self.heater}:HTR:RES"),
             # get_parser=self._parse_response_to_float,
         )
         """
@@ -222,7 +229,7 @@ class iPSMagnet(InstrumentModule):
             name="htr_vlim",
             unit="V",
             label=f"heater Voltage Limit of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.heater}:HTR:VLIM",
+            get_cmd=lambda: self._flush_then_get(f"READ:DEV:{self.heater}:HTR:VLIM"),
             # get_parser=self._parse_response_to_float,
         )
 
@@ -238,7 +245,9 @@ class iPSMagnet(InstrumentModule):
             name="heatpower",
             label=f"Heater Power of {self.full_name}",
             unit="W",
-            get_cmd=f"READ:DEV:{self.heater}:HTR:SIG:POWR",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.heater}:HTR:SIG:POWR"
+            ),
             get_parser=self._parse_response_to_float,
             # set_cmd=lambda pow: self._set_with_flush(
             #     f"SET:DEV:{self.heater}:HTR:SIG:VOLT:{self._power_to_volts(pow)}"
@@ -258,7 +267,9 @@ class iPSMagnet(InstrumentModule):
         self.tloop_p = self.add_parameter(
             name="tloop_p",
             label=f"Temperature Loop P of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:P",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:P"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:P:{val}"
@@ -275,7 +286,9 @@ class iPSMagnet(InstrumentModule):
         self.tloop_i = self.add_parameter(
             name="tloop_i",
             label=f"Temperature Loop I of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:I",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:I"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:I:{val}"
@@ -292,7 +305,9 @@ class iPSMagnet(InstrumentModule):
         self.tloop_d = self.add_parameter(
             name="tloop_d",
             label=f"Temperature Loop D of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:D",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:D"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:D:{val}"
@@ -310,7 +325,9 @@ class iPSMagnet(InstrumentModule):
             name="tset",
             label=f"Temperature Setpoint of {self.full_name}",
             unit="K",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:TSET",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:TSET"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:TSET:{val}"
@@ -328,7 +345,9 @@ class iPSMagnet(InstrumentModule):
         self.tloop_mode = self.add_parameter(
             name="tloop_mode",
             label=f"Temperature Loop Mode of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:ENAB",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:ENAB"
+            ),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:ENAB:{self._on_or_off(val)}"
             ),
@@ -346,7 +365,9 @@ class iPSMagnet(InstrumentModule):
             name="temp_ramprate",
             label=f"Temperature Ramp Rate of {self.full_name}",
             unit="K/min",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:RSET",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:RSET"
+            ),
             get_parser=self._parse_response_to_float,
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:RSET:{val}"
@@ -363,7 +384,9 @@ class iPSMagnet(InstrumentModule):
         self.temp_rampmode = self.add_parameter(
             name="temp_rampmode",
             label=f"Temperature Ramp Mode of {self.full_name}",
-            get_cmd=f"READ:DEV:{self.thermometer}:TEMP:LOOP:RENA",
+            get_cmd=lambda: self._flush_then_get(
+                f"READ:DEV:{self.thermometer}:TEMP:LOOP:RENA"
+            ),
             set_cmd=lambda val: self._set_with_flush(
                 f"SET:DEV:{self.thermometer}:TEMP:LOOP:RENA:{self._on_or_off(val)}"
             ),
@@ -384,6 +407,13 @@ class iPSMagnet(InstrumentModule):
             _ = self.root_instrument.visa_handle.read()
         except:
             pass
+
+    def _flush_then_get(self, cmd: str) -> str:
+        try:
+            _ = self.root_instrument.visa_handle.read()
+        except Exception:
+            pass  # Likely means buffer was already empty
+        return self.root_instrument.visa_handle.query(cmd)
 
     def _parse_response_to_float(self, response: str) -> float:
         """
@@ -428,13 +458,29 @@ class iPSMagnet(InstrumentModule):
                 )
                 return val
 
+    def _set_field(self, val: float) -> None:
+        if self.switch_htr() == "STAT:DEV:GRPZ:PSU:SIG:SWHT:OFF":
+            raise ValueError("The heater must be on to set the field")
+        if self.switch_htr() == "STAT:DEV:GRPZ:PSU:SIG:SWHT:ON":
+            # Using the safe fset method to set the field
+            time.sleep(0.2)
+            self.fset(self._safe_fset(val))
+            time.sleep(1)
+            self.rampmode("HOLD")
+            time.sleep(1)
+            self.rampmode("TO_SET")
+            while np.abs(self.field() - val) > 0.002:
+                time.sleep(1)
+
     def _safe_swtich(self, cmd: str) -> str:
         if cmd == "OFF":
             return "OFF"
         elif cmd == "ON":
             persistent_field = self.field()
             supply_field = self.supply_field()
-            if persistent_field == supply_field:
+            if (
+                np.abs(persistent_field - supply_field) < 0.001
+            ):  # Supply field must be within 0.001 T of the persistent field
                 return "ON"
             else:
                 print(
@@ -451,7 +497,7 @@ class MercuryiPS(VisaInstrument):
         super().__init__(name, address, terminator=terminator, **kwargs)
 
         self.connect_message()
-        self.visa_handle.timeout = 100
+        self.visa_handle.timeout = 400
 
         self.add_submodule(
             name="mag",
@@ -465,7 +511,7 @@ class MercuryiPS(VisaInstrument):
         """
         self.add_parameter(
             name="get_identity",
-            get_cmd=f"*IDN?",
+            get_cmd=lambda: self._flush_then_get(f"*IDN?"),
             get_parser=str,
         )
 
@@ -476,7 +522,11 @@ class MercuryiPS(VisaInstrument):
         set:    
         not defined
         """
-        self.add_parameter(name="alarms", get_cmd="READ:SYS:ALRM", get_parser=str)
+        self.add_parameter(
+            name="alarms",
+            get_cmd=lambda: self._flush_then_get("READ:SYS:ALRM"),
+            get_parser=str,
+        )
 
         """
         system_status 
@@ -486,7 +536,11 @@ class MercuryiPS(VisaInstrument):
         not defined
         """
 
-        self.add_parameter(name="system_status", get_cmd="READ:SYS:CAT", get_parser=str)
+        self.add_parameter(
+            name="system_status",
+            get_cmd=lambda: self._flush_then_get("READ:SYS:CAT"),
+            get_parser=str,
+        )
 
     def _parse_response_to_float(self, response: str) -> float:
         """
@@ -506,3 +560,10 @@ class MercuryiPS(VisaInstrument):
             _ = self.root_instrument.visa_handle.read()
         except:
             pass
+
+    def _flush_then_get(self, cmd: str) -> str:
+        try:
+            _ = self.root_instrument.visa_handle.read()
+        except Exception:
+            pass  # Likely means buffer was already empty
+        return self.root_instrument.visa_handle.query(cmd)
