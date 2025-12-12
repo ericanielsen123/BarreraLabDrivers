@@ -20,6 +20,10 @@ dependencies = [
     "pyserial >= 3.5"
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["barreralabdrivers*", "cappy*"]
+
 [project.scripts]
 serial-monitor = "barreralabdrivers.utils.serial_monitor:start_serial_monitor_cli"
 
