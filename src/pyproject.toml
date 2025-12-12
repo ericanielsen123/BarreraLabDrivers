@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cappy"
+version=  "0.0.1"
+description = "Cappy is a simple package for running capacitance experiments."
+readme = "README.md"
+requires-python = ">=3.8"
