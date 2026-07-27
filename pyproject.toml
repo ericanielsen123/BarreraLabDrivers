@@ -7,6 +7,7 @@ name = "barreralabdrivers"
 version = "0.1.0"
 authors = [
   { name="Vishwanath Wimalasena", email="vishy235@gmail.com" },
+  { name="Eames Donovan, email = "eames.donovan@mail.utoronto.ca"}
 ]
 description = "Drivers and utilities for instrument control in the Barrera Lab"
 readme = "README.md"
@@ -17,7 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "pyserial >= 3.5"
+    "pyserial >= 3.5",
 ]
 
 [project.scripts]

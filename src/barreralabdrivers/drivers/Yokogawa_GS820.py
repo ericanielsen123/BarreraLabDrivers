@@ -329,11 +329,14 @@ class YokogawaGS820Channel(InstrumentChannel):
             output_level: If missing, we assume that we are getting the
                 current level. Else we are setting it
         """
-        self._assert_mode(mode)
-        if output_level is not None:
-            self._set_output(output_level)
-            return None
-        return float(self.ask(f"{self.channel}:SOUR:{mode}:LEV?"))
+        if self.source_mode.get_latest() != mode:
+            return float(self.query(f"{self.channel}:MEAS?"))
+        else:
+            if output_level is not None:
+                 self._set_output(output_level)
+                 return None
+            return float(self.ask(f"{self.channel}:SOUR:{mode}:LEV?"))
+    
 
     def _set_output(self, output_level: float) -> None:
         """
@@ -436,42 +439,49 @@ class YokogawaGS820Channel(InstrumentChannel):
             )
 
     def _set_source_mode(self, mode: ModeType) -> None:
-        """
-        Set output mode and change delegate parameters' source accordingly.
-        Also, exclude/include the parameters from snapshot depending on the
-        mode. The instrument does not support 'current', 'current_range'
-        parameters in "VOLT" mode and 'voltage', 'voltage_range' parameters
-        in "CURR" mode.
-
-        Args:
-            mode: "CURR" or "VOLT"
-
-        """
-        if self.output() == "on":
-            raise YokogawaGS200Exception("Cannot switch mode while source is on")
-
-        if mode == "VOLT":
-            self.range.source = self.voltage_range
-            self.output_level.source = self.voltage
-            self.voltage_range.snapshot_exclude = False
-            self.voltage.snapshot_exclude = False
-            self.current_range.snapshot_exclude = True
-            self.current.snapshot_exclude = True
-        else:
-            self.range.source = self.current_range
-            self.output_level.source = self.current
-            self.voltage_range.snapshot_exclude = True
-            self.voltage.snapshot_exclude = True
-            self.current_range.snapshot_exclude = False
-            self.current.snapshot_exclude = False
-
-        self.write(f"{self.channel}:SOUR:FUNC {mode}")
-        # We set the cache here since `_update_measurement_module`
-        # needs the current value which would otherwise only be set
-        # after this method exits
-        self.source_mode.cache.set(mode)
-        # Update the measurement mode
-        # self._update_measurement_module(source_mode=mode)
+            """
+            Set output mode and change delegate parameters' source accordingly.
+            Also, exclude/include the parameters from snapshot depending on the
+            mode. The instrument does not support 'current', 'current_range'
+            parameters in "VOLT" mode and 'voltage', 'voltage_range' parameters
+            in "CURR" mode.
+    
+            Args:
+                mode: "CURR" or "VOLT"
+    
+            """
+            if self.output() == "on":
+                raise YokogawaGS200Exception("Cannot switch mode while source is on")
+    
+            if mode == "VOLT":
+                self.range.source = self.voltage_range
+                self.output_level.source = self.voltage
+                self.voltage_range.snapshot_exclude = False
+                self.voltage.snapshot_exclude = False
+                self.current_range.snapshot_exclude = True
+                self.current.snapshot_exclude = True
+            else:
+                self.range.source = self.current_range
+                self.output_level.source = self.current
+                self.voltage_range.snapshot_exclude = True
+                self.voltage.snapshot_exclude = True
+                self.current_range.snapshot_exclude = False
+                self.current.snapshot_exclude = False
+    
+            self.write(f"{self.channel}:SOUR:FUNC {mode}")
+            # We set the cache here since `_update_measurement_module`
+            # needs the current value which would otherwise only be set
+            # after this method exits
+            self.source_mode.cache.set(mode)
+            # Update the measurement mode
+            # self._update_measurement_module(source_mode=mode)
+            if mode == 'CURR':
+                self.write(f'{self.channel}:SENS:MODE FIX')
+                self.write(f'{self.channel}:SENS:FUNC VOLT')
+                print('We got em')
+            elif mode == 'VOLT':
+                self.write(f'{self.channel}:SENS:MODE FIX')
+                self.write(f'{self.channel}:SENS:FUNC CURR')
 
     def _set_range(self, mode: ModeType, output_range: float) -> None:
         """
@@ -572,6 +582,7 @@ class YokogawaGS820(VisaInstrument):
             instrument=self
         )
 
+        print("GREAT GOOGLY MOOGLY")
         self.connect_message()
 
     def _display_settext(self, text: str) -> None:
