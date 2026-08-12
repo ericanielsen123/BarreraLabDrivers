@@ -330,7 +330,7 @@ class YokogawaGS820Channel(InstrumentChannel):
                 current level. Else we are setting it
         """
         if self.source_mode.get_latest() != mode:
-            return float(self.query(f"{self.channel}:MEAS?"))
+            return float(self.ask(f"{self.channel}:MEAS?"))
         else:
             if output_level is not None:
                  self._set_output(output_level)
